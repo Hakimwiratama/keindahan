@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Memory Vault: Server upload 1 GB",
+			"type": "shell",
+			"command": "php",
+			"args": [
+				"artisan",
+				"serve",
+				"--host=127.0.0.1",
+				"--port=8000"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
