@@ -21,6 +21,39 @@ php artisan serve
 
 Buka alamat yang ditampilkan oleh `php artisan serve`, lalu daftar untuk membuat akun.
 
+## Deployment di EthioDeploy
+
+`database/*.sqlite` dan `.env` tidak dimasukkan ke Git. Karena itu, deployment harus memakai environment variables dari dashboard dan database SQLite pada disk persisten.
+
+Atur environment variables berikut di dashboard:
+
+| Nama | Nilai |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `APP_URL` | URL HTTPS aplikasi |
+| `APP_KEY` | Gunakan key yang sudah dipakai aplikasi; jangan jalankan `key:generate` pada database yang sudah berisi data |
+| `DB_CONNECTION` | `sqlite` |
+| `DB_DATABASE` | Path absolut ke file SQLite pada disk persisten EthioDeploy |
+| `SESSION_DRIVER` | `file` |
+| `CACHE_STORE` | `file` |
+| `FILESYSTEM_DISK` | `local` |
+| `SESSION_SECURE_COOKIE` | `true` untuk situs HTTPS |
+
+Sebelum deployment pertama:
+
+1. Pastikan PHP 8.2 atau lebih baru tersedia beserta `pdo_sqlite`, `sqlite3`, `fileinfo`, `mbstring`, `openssl`, dan `session`.
+2. Pastikan document root Nginx/PHP-FPM mengarah ke direktori `public/`.
+3. Pastikan disk persisten sudah dipasang. Untuk database yang telah berisi data, gunakan file database lama dari disk persisten atau backup yang benar; jangan membuat database baru pada path pengganti.
+4. Pastikan user PHP-FPM dapat menulis ke direktori `storage/` dan `bootstrap/cache/`. Unggahan privat disimpan di `storage/app/private`.
+5. Jalankan `composer install --no-dev --optimize-autoloader --no-interaction`, lalu `php artisan config:clear`.
+6. Periksa `php artisan migrate:status`. Backup database sebelum menjalankan `php artisan migrate --force`. Migration `2026_11_01_000005_remove_default_albums` memindahkan kenangan dari album bernama “Sayang” atau “Kuliah” ke “Kenangan lama”, lalu menghapus baris album tersebut; tinjau dampaknya untuk data produksi sebelum menerapkannya.
+7. Setelah environment variables benar, jalankan `php artisan config:cache`.
+
+Jangan mengaktifkan `APP_DEBUG` di production. Perintah `php artisan key:generate` hanya untuk instalasi baru; mengganti key pada aplikasi yang sudah berjalan dapat membuat sesi dan data terenkripsi lama tidak dapat dibaca.
+
+Pengaturan PHP dan batas body Nginx biasanya hanya tersedia di dashboard EthioDeploy. Untuk unggahan sampai 1 GB, sesuaikan batas PHP dan proxy sesuai bagian Privasi dan penyimpanan di bawah; batas paket hosting tetap dapat lebih rendah.
+
 ## Privasi dan penyimpanan
 
 - Setiap catatan dibuat melalui relasi `User::memories()` sehingga `user_id` berasal dari akun yang sedang masuk.
