@@ -17,6 +17,7 @@ class AlbumController extends Controller
         $albums = $request->user()
             ->albums()
             ->withCount('memories')
+            ->with('coverPhoto')
             ->latest()
             ->get();
 
@@ -54,6 +55,7 @@ class AlbumController extends Controller
 
         $memories = $album->memories()
             ->latest()
+            ->orderByDesc('id')
             ->paginate(12);
 
         return view('albums.show', compact('album', 'memories'));

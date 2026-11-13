@@ -8,6 +8,12 @@
         <h1>Masuk ke ruang kenanganmu</h1>
         <p class="muted">Semua momenmu tersimpan aman dan hanya dapat diakses oleh akunmu.</p>
 
+        @if (session('login_session_expired'))
+            <div class="notice notice-error" role="alert">
+                Sesi login berakhir atau halaman sudah terlalu lama terbuka. Silakan kirim formulir sekali lagi.
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="notice notice-error">
                 <ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>

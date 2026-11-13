@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Album;
 use App\Models\Memory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +45,31 @@ class MemoryPrivacyTest extends TestCase
         ])->assertRedirect(route('albums.index'));
 
         $this->assertAuthenticatedAs($user);
+        $this->get(route('albums.index'))
+            ->assertOk()
+            ->assertSee('login-transition-overlay', false)
+            ->assertSee('login-light-top-left', false)
+            ->assertSee('login-light-top-right', false)
+            ->assertSee('login-light-bottom-right', false)
+            ->assertSee('login-light-bottom-left', false)
+            ->assertSee('login-light-core', false);
+    }
+
+    public function test_the_login_page_uses_the_dark_snow_theme(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('dark-dashboard', false)
+            ->assertSee('class="snowfall"', false)
+            ->assertSee('❄', false);
+    }
+
+    public function test_the_login_page_explains_when_its_session_expires(): void
+    {
+        $this->withSession(['login_session_expired' => true])
+            ->get(route('login'))
+            ->assertOk()
+            ->assertSee('Sesi login berakhir atau halaman sudah terlalu lama terbuka.');
     }
 
     public function test_a_user_only_sees_their_own_memories(): void
@@ -68,20 +94,85 @@ class MemoryPrivacyTest extends TestCase
         $this->actingAs($owner)
             ->get(route('albums.index'))
             ->assertOk()
+            ->assertSee('dark-dashboard', false)
             ->assertSee('Sayang')
+            ->assertSee('class="snowfall"', false)
             ->assertDontSee('Kuliah pribadi')
             ->assertDontSee('Bukan milik saya');
 
         $this->actingAs($owner)
             ->get(route('albums.show', $ownAlbum))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('class="snowfall"', false);
 
         $this->actingAs($owner)
             ->get(route('memories.show', [$ownAlbum, $ownMemory]))
             ->assertOk()
+            ->assertSee('class="snowfall"', false)
             ->assertSee('Milik saya')
             ->assertSee('← Kembali ke folder')
             ->assertSee(route('albums.show', $ownAlbum), false);
+    }
+
+    public function test_photo_and_video_details_can_navigate_between_media_without_notes(): void
+    {
+        $user = User::factory()->create();
+        $album = $user->albums()->create(['name' => 'Liburan']);
+
+        $newerPhoto = $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Foto baru',
+            'type' => 'photo',
+            'file_path' => 'memories/newer.jpg',
+        ]);
+        $currentVideo = $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Video saat ini',
+            'type' => 'video',
+            'file_path' => 'memories/current.mp4',
+            'mime_type' => 'video/mp4',
+        ]);
+        $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Catatan',
+            'type' => 'note',
+            'note' => 'Catatan tidak ikut navigasi media.',
+        ]);
+        $olderPhoto = $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Foto lama',
+            'type' => 'photo',
+            'file_path' => 'memories/older.jpg',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('memories.show', [$album, $currentVideo]))
+            ->assertOk()
+            ->assertSee('2 / 3')
+            ->assertSee(route('memories.show', [$album, $newerPhoto]), false)
+            ->assertSee(route('memories.show', [$album, $olderPhoto]), false)
+            ->assertSee('media-nav-previous', false)
+            ->assertSee('media-nav-next', false)
+            ->assertSee('data-media-viewer', false)
+            ->assertSee('touchstart', false);
+    }
+
+    public function test_a_single_media_item_does_not_show_navigation_controls(): void
+    {
+        $user = User::factory()->create();
+        $album = $user->albums()->create(['name' => 'Kenangan']);
+        $photo = $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Satu foto',
+            'type' => 'photo',
+            'file_path' => 'memories/one.jpg',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('memories.show', [$album, $photo]))
+            ->assertOk()
+            ->assertDontSee('media-navigation', false)
+            ->assertDontSee('data-media-viewer', false);
     }
 
     public function test_a_user_can_create_and_open_a_private_album(): void
@@ -114,6 +205,35 @@ class MemoryPrivacyTest extends TestCase
             ->assertOk()
             ->assertSee('name="files[]"', false)
             ->assertSee('1 GB');
+    }
+
+    public function test_the_first_uploaded_photo_is_shown_as_an_album_cover(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $album = $user->albums()->create(['name' => 'Rumah']);
+
+        $firstPhoto = $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Depan rumah',
+            'type' => 'photo',
+            'file_path' => UploadedFile::fake()->image('depan.jpg')->store('memories/'.$user->id.'/'.$album->id, 'local'),
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        $user->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Dapur',
+            'type' => 'photo',
+            'file_path' => UploadedFile::fake()->image('dapur.jpg')->store('memories/'.$user->id.'/'.$album->id, 'local'),
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('albums.index'))
+            ->assertOk()
+            ->assertSee(route('memories.preview', [$album, $firstPhoto]))
+            ->assertSee('2 kenangan');
     }
 
     public function test_a_user_cannot_open_another_users_album_or_its_memories(): void
@@ -220,6 +340,49 @@ class MemoryPrivacyTest extends TestCase
             'album_id' => $archiveAlbum->id,
             'note' => 'Tetap tersimpan.',
         ]);
+    }
+
+    public function test_a_user_can_create_models_with_user_and_album_ids_directly(): void
+    {
+        $user = User::factory()->create();
+
+        $album = Album::create([
+            'user_id' => $user->id,
+            'name' => 'Folder manual',
+        ]);
+
+        $memory = Memory::create([
+            'user_id' => $user->id,
+            'album_id' => $album->id,
+            'title' => 'Catatan manual',
+            'type' => 'note',
+            'note' => 'Tersimpan dengan user_id yang benar.',
+        ]);
+
+        $this->assertSame($user->id, $album->user_id);
+        $this->assertSame($user->id, $memory->user_id);
+        $this->assertSame($album->id, $memory->album_id);
+    }
+
+    public function test_a_photo_preview_still_works_when_the_mime_type_is_missing(): void
+    {
+        Storage::fake('local');
+        $owner = User::factory()->create();
+        $album = $owner->albums()->create(['name' => 'Foto']);
+        $path = UploadedFile::fake()->image('photo.jpg')->store('memories/'.$owner->id.'/'.$album->id, 'local');
+        $memory = $owner->memories()->create([
+            'album_id' => $album->id,
+            'title' => 'Foto pribadi',
+            'type' => 'photo',
+            'file_path' => $path,
+            'mime_type' => null,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('memories.preview', [$album, $memory]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
     public function test_a_user_can_preview_a_photo_only_in_their_own_album(): void
@@ -397,6 +560,13 @@ class MemoryPrivacyTest extends TestCase
             'title' => 'Video besar',
             'file_size' => 1_073_741_824,
         ]);
+
+        $memory = $album->memories()->firstOrFail();
+        $this->actingAs($user)
+            ->get(route('memories.show', [$album, $memory]))
+            ->assertOk()
+            ->assertSee('class="snowfall"', false)
+            ->assertSee('<video class="detail-preview" controls', false);
     }
 
     public function test_a_user_cannot_upload_a_video_larger_than_one_gibibyte(): void

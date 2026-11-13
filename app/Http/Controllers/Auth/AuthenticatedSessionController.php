@@ -35,7 +35,8 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('albums.index'));
+        return redirect()->intended(route('albums.index'))
+            ->with('login_transition', true);
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -17,6 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (HttpException $exception, Request $request) {
+            if ($exception->getStatusCode() === 419 && $request->routeIs('login.store')) {
+                return redirect()
+                    ->route('login')
+                    ->withInput($request->except(['_token', 'password', 'remember']))
+                    ->with('login_session_expired', true);
+            }
+
             if ($exception->getStatusCode() === 419 && $request->routeIs('register.store')) {
                 return redirect()
                     ->route('register')

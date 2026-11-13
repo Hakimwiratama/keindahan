@@ -11,6 +11,7 @@ class Memory extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'album_id',
         'title',
         'type',

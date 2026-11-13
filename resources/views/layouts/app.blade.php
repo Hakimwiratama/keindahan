@@ -7,7 +7,26 @@
     <title>@yield('title', 'Memory Vault') · Memory Vault</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
-<body>
+<body @class([
+    'dark-dashboard' => auth()->check() || request()->routeIs('login'),
+    'login-transition' => session('login_transition'),
+])>
+    @if (session('login_transition'))
+        <div class="login-transition-overlay" aria-hidden="true">
+            <span class="login-light login-light-top-left"><span class="login-orb"></span></span>
+            <span class="login-light login-light-top-right"><span class="login-orb"></span></span>
+            <span class="login-light login-light-bottom-right"><span class="login-orb"></span></span>
+            <span class="login-light login-light-bottom-left"><span class="login-orb"></span></span>
+            <span class="login-light-core"></span>
+        </div>
+    @endif
+    @if (auth()->check() || request()->routeIs('login'))
+        <div class="snowfall" aria-hidden="true">
+            @for ($flake = 0; $flake < 48; $flake++)
+                <span style="--flake-left: {{ ($flake * 37) % 100 }}%; --flake-size: {{ 10 + ($flake % 4) * 5 }}px; --flake-duration: {{ 12 + ($flake % 4) * 4 }}s; --flake-delay: -{{ (($flake * 7) % 24) + 1 }}s; --flake-opacity: {{ .45 + ($flake % 4) * .12 }}; --flake-drift: {{ (($flake * 17) % 61) - 30 }}px; --flake-sway: {{ (($flake * 19) % 41) - 20 }}px; --flake-sway-back: {{ 20 - (($flake * 19) % 41) }}px;">❄</span>
+            @endfor
+        </div>
+    @endif
     <header class="topbar">
         <a class="brand" href="{{ auth()->check() ? route('albums.index') : route('login') }}">
             <span class="brand-mark">M</span> Memory Vault

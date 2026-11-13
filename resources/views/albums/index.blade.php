@@ -23,10 +23,17 @@
         <section class="album-grid">
             @foreach ($albums as $album)
                 <a class="album-card" href="{{ route('albums.show', $album) }}">
-                    <div class="album-art">
-                        <span class="album-art-icon">▰</span>
-                        <span class="album-art-count">{{ $album->memories_count }} kenangan</span>
-                    </div>
+                    @if ($album->coverPhoto && $album->coverPhoto->file_path)
+                        <div class="album-art album-art-photo">
+                            <img src="{{ route('memories.preview', [$album, $album->coverPhoto]) }}" alt="Foto sampul {{ $album->name }}" loading="lazy">
+                            <span class="album-art-count">{{ $album->memories_count }} kenangan</span>
+                        </div>
+                    @else
+                        <div class="album-art">
+                            <span class="album-art-icon">▰</span>
+                            <span class="album-art-count">{{ $album->memories_count }} kenangan</span>
+                        </div>
+                    @endif
                     <div class="album-card-body">
                         <h2>{{ $album->name }}</h2>
                         <p>Dibuat {{ $album->created_at->translatedFormat('d F Y') }}</p>

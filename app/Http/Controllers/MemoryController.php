@@ -128,7 +128,37 @@ class MemoryController extends Controller
         $memory = $this->ownedMemory($request, $album, $memory);
         $this->authorize('view', $memory);
 
-        return view('memories.show', compact('memory'));
+        $mediaIds = collect();
+        $previousMemoryId = null;
+        $nextMemoryId = null;
+        $mediaPosition = 0;
+
+        if (in_array($memory->type, ['photo', 'video'], true) && $memory->file_path) {
+            $mediaIds = $memory->album->memories()
+                ->whereIn('type', ['photo', 'video'])
+                ->whereNotNull('file_path')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->pluck('id');
+
+            $currentPosition = $mediaIds->search($memory->id);
+
+            if ($currentPosition !== false) {
+                $mediaPosition = $currentPosition + 1;
+                $previousMemoryId = $currentPosition > 0 ? $mediaIds->get($currentPosition - 1) : null;
+                $nextMemoryId = $mediaIds->get($currentPosition + 1);
+            }
+        }
+
+        $mediaCount = $mediaIds->count();
+
+        return view('memories.show', compact(
+            'memory',
+            'previousMemoryId',
+            'nextMemoryId',
+            'mediaPosition',
+            'mediaCount',
+        ));
     }
 
     public function preview(Request $request, int $album, int $memory): BinaryFileResponse
@@ -143,8 +173,12 @@ class MemoryController extends Controller
             404,
         );
 
+        $contentType = $memory->mime_type
+            ?: Storage::disk('local')->mimeType($memory->file_path)
+            ?: 'application/octet-stream';
+
         return response()->file(Storage::disk('local')->path($memory->file_path), [
-            'Content-Type' => $memory->mime_type,
+            'Content-Type' => $contentType,
             'X-Content-Type-Options' => 'nosniff',
             'Content-Security-Policy' => "default-src 'none'; sandbox",
         ]);
